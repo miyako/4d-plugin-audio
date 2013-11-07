@@ -26,3 +26,10 @@ void AUDIO_PLAY(sLONG_PTR *pResult, PackagePtr pParams);
 void AUDIO_PAUSE(sLONG_PTR *pResult, PackagePtr pParams);
 void AUDIO_RESUME(sLONG_PTR *pResult, PackagePtr pParams);
 void AUDIO_STOP(sLONG_PTR *pResult, PackagePtr pParams);
+void AUDIO_Is_playing(sLONG_PTR *pResult, PackagePtr pParams);
+void AUDIO_Get_duration(sLONG_PTR *pResult, PackagePtr pParams);
+void AUDIO_Get_time(sLONG_PTR *pResult, PackagePtr pParams);
+void AUDIO_SET_TIME(sLONG_PTR *pResult, PackagePtr pParams);
+
+// --- Convert
+void AUDIO_Convert(PA_PluginParameters params);

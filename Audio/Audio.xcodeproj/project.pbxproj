@@ -53,6 +53,11 @@
 		D19CC1831353782E0004336E /* C_REAL.h in Headers */ = {isa = PBXBuildFile; fileRef = D19CC17B1353782E0004336E /* C_REAL.h */; };
 		D19CC1841353782E0004336E /* C_TEXT.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D19CC17C1353782E0004336E /* C_TEXT.cpp */; };
 		D19CC1851353782E0004336E /* C_TEXT.h in Headers */ = {isa = PBXBuildFile; fileRef = D19CC17D1353782E0004336E /* C_TEXT.h */; };
+		D19EECEC182B1E3200A60E35 /* CAStreamBasicDescription.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D19EECEA182B1E3200A60E35 /* CAStreamBasicDescription.cpp */; };
+		D19EECED182B1E3200A60E35 /* CAStreamBasicDescription.h in Headers */ = {isa = PBXBuildFile; fileRef = D19EECEB182B1E3200A60E35 /* CAStreamBasicDescription.h */; };
+		D19EECF2182B1E4C00A60E35 /* CADebugMacros.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D19EECF0182B1E4C00A60E35 /* CADebugMacros.cpp */; };
+		D19EECF3182B1E4C00A60E35 /* CADebugMacros.h in Headers */ = {isa = PBXBuildFile; fileRef = D19EECF1182B1E4C00A60E35 /* CADebugMacros.h */; };
+		D19EECF7182B1E5600A60E35 /* CAMath.h in Headers */ = {isa = PBXBuildFile; fileRef = D19EECF6182B1E5600A60E35 /* CAMath.h */; };
 		D1A2715E182515E400562F28 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1A2715D182515E400562F28 /* AudioToolbox.framework */; };
 		D1A27160182515E400562F28 /* AudioUnit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1A2715F182515E400562F28 /* AudioUnit.framework */; };
 		D1A27162182515E400562F28 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1A27161182515E400562F28 /* CoreAudio.framework */; };
@@ -107,6 +112,11 @@
 		D19CC17B1353782E0004336E /* C_REAL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = C_REAL.h; path = classes/C_REAL.h; sourceTree = "<group>"; };
 		D19CC17C1353782E0004336E /* C_TEXT.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; fileEncoding = 4; name = C_TEXT.cpp; path = classes/C_TEXT.cpp; sourceTree = "<group>"; };
 		D19CC17D1353782E0004336E /* C_TEXT.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = C_TEXT.h; path = classes/C_TEXT.h; sourceTree = "<group>"; };
+		D19EECEA182B1E3200A60E35 /* CAStreamBasicDescription.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CAStreamBasicDescription.cpp; sourceTree = "<group>"; };
+		D19EECEB182B1E3200A60E35 /* CAStreamBasicDescription.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CAStreamBasicDescription.h; sourceTree = "<group>"; };
+		D19EECF0182B1E4C00A60E35 /* CADebugMacros.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CADebugMacros.cpp; sourceTree = "<group>"; };
+		D19EECF1182B1E4C00A60E35 /* CADebugMacros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CADebugMacros.h; sourceTree = "<group>"; };
+		D19EECF6182B1E5600A60E35 /* CAMath.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CAMath.h; sourceTree = "<group>"; };
 		D1A2715D182515E400562F28 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = /System/Library/Frameworks/AudioToolbox.framework; sourceTree = "<absolute>"; };
 		D1A2715F182515E400562F28 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = /System/Library/Frameworks/AudioUnit.framework; sourceTree = "<absolute>"; };
 		D1A27161182515E400562F28 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = /System/Library/Frameworks/CoreAudio.framework; sourceTree = "<absolute>"; };
@@ -132,6 +142,7 @@
 		089C166AFE841209C02AAC07 /* 4D Plugin */ = {
 			isa = PBXGroup;
 			children = (
+				D19EECCD182B1E1700A60E35 /* Public Utility */,
 				D13DDF7A18253407005A065A /* AudioCapture */,
 				D13DDE851825262F005A065A /* AudioDevice */,
 				08FB77ADFE841716C02AAC07 /* Source */,
@@ -251,6 +262,18 @@
 			name = Classes;
 			sourceTree = "<group>";
 		};
+		D19EECCD182B1E1700A60E35 /* Public Utility */ = {
+			isa = PBXGroup;
+			children = (
+				D19EECF6182B1E5600A60E35 /* CAMath.h */,
+				D19EECF0182B1E4C00A60E35 /* CADebugMacros.cpp */,
+				D19EECF1182B1E4C00A60E35 /* CADebugMacros.h */,
+				D19EECEA182B1E3200A60E35 /* CAStreamBasicDescription.cpp */,
+				D19EECEB182B1E3200A60E35 /* CAStreamBasicDescription.h */,
+			);
+			name = "Public Utility";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -281,6 +304,9 @@
 				D13DDE8B1825262F005A065A /* AudioDevice.h in Headers */,
 				D13DDE8D1825262F005A065A /* AudioDeviceList.h in Headers */,
 				D13DDF7D18253407005A065A /* AudioCapture.h in Headers */,
+				D19EECED182B1E3200A60E35 /* CAStreamBasicDescription.h in Headers */,
+				D19EECF3182B1E4C00A60E35 /* CADebugMacros.h in Headers */,
+				D19EECF7182B1E5600A60E35 /* CAMath.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -377,6 +403,8 @@
 				D13DDE8A1825262F005A065A /* AudioDevice.cpp in Sources */,
 				D13DDE8C1825262F005A065A /* AudioDeviceList.cpp in Sources */,
 				D13DDF7E18253407005A065A /* AudioCapture.mm in Sources */,
+				D19EECEC182B1E3200A60E35 /* CAStreamBasicDescription.cpp in Sources */,
+				D19EECF2182B1E4C00A60E35 /* CADebugMacros.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

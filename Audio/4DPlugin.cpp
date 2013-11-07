@@ -8,7 +8,6 @@
  #
  # --------------------------------------------------------------------------------*/
 
-
 #include "4DPluginAPI.h"
 #include "4DPlugin.h"
 
@@ -24,6 +23,7 @@
 #import <AudioToolbox/AudioToolbox.h>
 
 #include "AudioDeviceList.h"
+#include "CAStreamBasicDescription.h"
 
 AudioCapture *capture;
 
@@ -94,7 +94,8 @@ void PluginMain(int32_t selector, PA_PluginParameters params)
 			
 			case 2 :				
 			case 3 :	
-			case 4 :					
+			case 4 :	
+			case 15 :	
 				CommandDispatcherInMainProcess (pProcNum, params);
 				break;
 			default:
@@ -124,7 +125,13 @@ void CommandDispatcherInMainProcess (int32_t pProcNum, PA_PluginParameters param
 
 		case 4 :
 			PA_RunInMainProcess((PA_RunInMainProcessProcPtr)AUDIO_Is_recording, params);		
-			break;				
+			break;
+			
+// --- Convert
+			
+		case 15 :
+			PA_RunInMainProcess((PA_RunInMainProcessProcPtr)AUDIO_Convert, params);
+			break;			
 	}
 }
 
@@ -172,6 +179,22 @@ void CommandDispatcher (int32_t pProcNum, sLONG_PTR *pResult, PackagePtr pParams
 			
 		case 10 :
 			AUDIO_STOP(pResult, pParams);
+			break;			
+			
+		case 11 :
+			AUDIO_Is_playing(pResult, pParams);
+			break;
+			
+		case 12 :
+			AUDIO_Get_duration(pResult, pParams);
+			break;
+			
+		case 13 :
+			AUDIO_Get_time(pResult, pParams);
+			break;
+			
+		case 14 :
+			AUDIO_SET_TIME(pResult, pParams);
 			break;			
 	}
 }
@@ -286,7 +309,6 @@ void AUDIO_Begin_recording(PA_PluginParameters params)
 
 // ------------------------------------- Play -------------------------------------
 
-
 void AUDIO_Open_file(sLONG_PTR *pResult, PackagePtr pParams)
 {
 	C_TEXT Param1;
@@ -349,12 +371,282 @@ void AUDIO_STOP(sLONG_PTR *pResult, PackagePtr pParams)
 	C_LONGINT Param1;
 	
 	Param1.fromParamAtIndex(pParams, 1);
-#if VERSIONWIN
-#else	
+	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
 	if(sound)
-		[sound stop];
-#endif	
+		[sound stop];	
 }
 
+void AUDIO_Is_playing(sLONG_PTR *pResult, PackagePtr pParams)
+{
+	C_LONGINT Param1;
+	C_LONGINT returnValue;
+	
+	Param1.fromParamAtIndex(pParams, 1);
+	
+	NSSound *sound = _soundFileRefGet(Param1);
+	
+	if(sound)
+		returnValue.setIntValue([sound isPlaying]);
+
+	returnValue.setReturn(pResult);
+}
+
+void AUDIO_Get_duration(sLONG_PTR *pResult, PackagePtr pParams)
+{
+	C_LONGINT Param1;
+	C_TIME returnValue;
+	
+	Param1.fromParamAtIndex(pParams, 1);
+	
+	NSSound *sound = _soundFileRefGet(Param1);
+	
+	if(sound)
+		returnValue.setSeconds([sound duration]);
+	
+	returnValue.setReturn(pResult);
+}
+
+void AUDIO_Get_time(sLONG_PTR *pResult, PackagePtr pParams)
+{
+	C_LONGINT Param1;
+	C_TIME returnValue;
+	
+	Param1.fromParamAtIndex(pParams, 1);
+	
+	NSSound *sound = _soundFileRefGet(Param1);
+	
+	if(sound)
+		returnValue.setSeconds([sound currentTime]);
+	
+	returnValue.setReturn(pResult);
+}
+
+void AUDIO_SET_TIME(sLONG_PTR *pResult, PackagePtr pParams)
+{
+	C_LONGINT Param1;
+	C_TIME Param2;
+	
+	Param1.fromParamAtIndex(pParams, 1);
+	Param2.fromParamAtIndex(pParams, 2);
+	
+	NSSound *sound = _soundFileRefGet(Param1);
+	
+	if(sound)
+		[sound setCurrentTime:Param2.getSeconds()];
+}
+
+// ------------------------------------ Convert -----------------------------------
+
+bool GetFormatFromFileId (AudioFileID fileId, CAStreamBasicDescription &format)
+{
+	UInt32 size;
+	bool success = false;
+	
+	if(!AudioFileGetPropertyInfo(fileId, 
+								 kAudioFilePropertyFormatList, 
+								 &size, NULL)){
+	
+		UInt32 numFormats = size / sizeof(AudioFormatListItem);
+		AudioFormatListItem *formatList = new AudioFormatListItem [numFormats];
+		
+		if(!AudioFileGetProperty(fileId, 
+								 kAudioFilePropertyFormatList, 
+								 &size, 
+								 formatList)){
+			
+			numFormats = size / sizeof(AudioFormatListItem); // we need to reassess the actual number of formats when we get it
+			
+			if (numFormats == 1) {
+				// this is the common case
+				format = formatList[0].mASBD;
+				success = true;
+			} else {
+				// we should look to see which decoders we have on the system
+				if(!AudioFormatGetPropertyInfo(kAudioFormatProperty_DecodeFormatIDs, 0, NULL, &size)){
+					UInt32 numDecoders = size / sizeof(OSType);
+					OSType *decoderIDs = new OSType [ numDecoders ];
+					if(!AudioFormatGetProperty(kAudioFormatProperty_DecodeFormatIDs, 0, NULL, &size, decoderIDs)){
+						unsigned int i = 0;
+						for (; i < numFormats; ++i) {
+							OSType decoderID = formatList[i].mASBD.mFormatID;
+							bool found = false;
+							for (unsigned int j = 0; j < numDecoders; ++j) {
+								if (decoderID == decoderIDs[j]) {
+									found = true;
+									break;
+								}
+							}
+							if (found) break;
+						}
+						delete [] decoderIDs;
+						
+						if (!(i >= numFormats)) {
+							format = formatList[i].mASBD;
+							success = true;
+						}
+						
+					}
+				}
+			}
+			delete [] formatList;
+		}
+	}
+	return success;
+}
+
+bool GetFormatFromPath(C_TEXT &path, CAStreamBasicDescription &format){
+
+	bool success = false;
+	NSURL *url = path.copyUrl();
+	
+	if(url){
+		AudioFileID fileId;
+		if(!AudioFileOpenURL((CFURLRef)url, kAudioFileReadPermission, 0, &fileId)){
+			success = GetFormatFromFileId (fileId, format);
+			AudioFileClose (fileId);
+		}
+		[url release];
+	}
+	return success;
+}
+
+AudioStreamBasicDescription AudioFormatAAC(){
+	
+	AudioStreamBasicDescription audioFormat;
+	audioFormat.mSampleRate         = 44100.0;
+	audioFormat.mFormatID           = kAudioFormatMPEG4AAC;
+	audioFormat.mFormatFlags        = 0;
+	audioFormat.mBytesPerPacket     = 0;	
+	audioFormat.mFramesPerPacket    = 1024;
+	audioFormat.mBytesPerFrame      = 0;
+	audioFormat.mChannelsPerFrame   = 2;
+	audioFormat.mBitsPerChannel     = 0;
+	audioFormat.mReserved           = 0;
+	
+	return audioFormat;
+}
+
+AudioFileTypeID GetFileType(C_LONGINT &param){
+	
+	AudioFileTypeID outputFileType;
+	
+	switch (param.getIntValue()) {
+		case 1:
+			outputFileType = kAudioFileMP3Type;
+			break;
+		default:
+			outputFileType = kAudioFileAAC_ADTSType;
+			break;			
+	}	
+	
+	return outputFileType;
+}
+
+void AUDIO_Convert(PA_PluginParameters params)
+{
+	sLONG_PTR *pResult = (sLONG_PTR *)params->fResult;
+	PackagePtr pParams = (PackagePtr)params->fParameters;
+	
+	C_TEXT Param1;
+	C_TEXT Param2;
+	C_REAL Param3;
+	C_LONGINT returnValue;
+	
+	Param1.fromParamAtIndex(pParams, 1);
+	Param2.fromParamAtIndex(pParams, 2);
+	Param3.fromParamAtIndex(pParams, 3);
+	
+	ExtAudioFileRef infile, outfile;
+	
+	OSStatus err = noErr;
+	
+	CAStreamBasicDescription inputFormat, outputFormat;
+	
+	if(GetFormatFromPath(Param1, inputFormat)){
+	
+		NSURL *url = Param1.copyUrl();
+		Float64 outputSampleRate = Param3.getDoubleValue();
+		
+		if(url){
+			err = ExtAudioFileOpenURL ((CFURLRef)url, &infile);
+			[url release];
+			
+			if(!err){
+				
+				outputFormat = AudioFormatAAC();
+				AudioFileTypeID outputFileType = kAudioFileAAC_ADTSType;
+				outputFormat.mSampleRate = (outputSampleRate == 0 ? inputFormat.mSampleRate : outputSampleRate); 
+				outputFormat.mChannelsPerFrame = (outputFormat.mFormatID == kAudioFormatiLBC ? 1 : inputFormat.NumberChannels()); // for iLBC num channels must be 1
+				
+				url = Param2.copyUrl();
+				
+				if(url){
+					err = ExtAudioFileCreateWithURL ((CFURLRef)url, 
+													 outputFileType, 
+													 &outputFormat, 
+													 NULL, 
+													 kAudioFileFlags_EraseFile, 
+													 &outfile);
+					[url release];
+					
+					if(!err){
+						
+						CAStreamBasicDescription clientFormat = (inputFormat.mFormatID == kAudioFormatLinearPCM ? inputFormat : outputFormat);
+						UInt32 size = sizeof(clientFormat);
+						if(!ExtAudioFileSetProperty(infile, kExtAudioFileProperty_ClientDataFormat, size, &clientFormat)){
+							
+							size = sizeof(clientFormat);
+							if(!ExtAudioFileSetProperty(outfile, kExtAudioFileProperty_ClientDataFormat, size, &clientFormat)){
+								
+								AudioConverterRef outConverter;
+								size = sizeof(outConverter);
+								if(!ExtAudioFileGetProperty(outfile, kExtAudioFileProperty_AudioConverter, &size, &outConverter)){
+									
+									CFArrayRef config = NULL;
+									if(!ExtAudioFileSetProperty(outfile,
+																kExtAudioFileProperty_ConverterConfig,
+																sizeof(config), 
+																&config)){
+											
+										const UInt32 kSrcBufSize = 32768;
+										char srcBuffer[kSrcBufSize];
+										
+										while (1) 
+										{
+											PA_YieldAbsolute();
+						
+											AudioBufferList fillBufList;
+											fillBufList.mNumberBuffers = 1;
+											fillBufList.mBuffers[0].mNumberChannels = inputFormat.mChannelsPerFrame;
+											fillBufList.mBuffers[0].mDataByteSize = kSrcBufSize;
+											fillBufList.mBuffers[0].mData = srcBuffer;
+											
+											UInt32 numFrames = (kSrcBufSize / clientFormat.mBytesPerFrame);
+											
+											if(!ExtAudioFileRead (infile, &numFrames, &fillBufList)){
+												
+												if (!numFrames){
+													returnValue.setIntValue(1);
+													break;
+												}
+												
+												if(ExtAudioFileWrite(outfile, numFrames, &fillBufList))
+													break;
+											}	
+										}
+									}
+								}
+							}
+						}
+						ExtAudioFileDispose(outfile);
+					}
+				}
+				ExtAudioFileDispose(infile);	
+			}
+		}	
+	}
+	
+	returnValue.setReturn(pResult);
+}
