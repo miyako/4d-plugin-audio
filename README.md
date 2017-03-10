@@ -24,7 +24,8 @@ If (0=AUDIO Is recording )  //only 1 at a time
 End if 
 ```
 
-##Playing
+###Playing
+
 ```
 $path:=System folder(Desktop)+"My Recording.aif"
 
@@ -47,4 +48,14 @@ End while
 AUDIO STOP ($audio)
 
 AUDIO CLOSE ($audio)
+```
+
+###Converting
+
+```
+$inPath:=System folder(Desktop)+"My Recording.aif"
+$outPath:=System folder(Desktop)+"My Recording.aac"
+
+$sampleRate:=22050
+$success:=AUDIO Convert ($inPath;$outPath;$sampleRate)
 ```
