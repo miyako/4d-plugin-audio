@@ -15,7 +15,7 @@ $path:=System folder(Desktop)+"My Recording.aif"
 If (0=AUDIO Is recording )  //only 1 at a time
 	$success:=AUDIO Begin recording ($path)
 	Repeat 
-		DELAY PROCESS(Current process;0)
+		DELAY PROCESS(Current process;10)
 	Until (Caps lock down)
 	
 	  //the path is returned
@@ -42,7 +42,7 @@ AUDIO PAUSE ($audio)
 AUDIO RESUME ($audio)
 
 While (1=AUDIO Is playing ($audio) & Not(Caps lock down)
-	DELAY PROCESS(Current process;0)
+	DELAY PROCESS(Current process;10)
 End while 
 
 AUDIO STOP ($audio)
