@@ -82,12 +82,12 @@ Parameter|Type|Description
 recording|INT32|``1`` if recording
 
 ```
-recording:=AUDIO Begin recording (path)
+success:=AUDIO Begin recording (path)
 ```
 
 Parameter|Type|Description
 ------------|------------|----
-recording|INT32|``1`` on success
+success|INT32|``1`` on success
 path|TEXT|Output file path
 
 ```
@@ -144,6 +144,7 @@ success:=AUDIO Convert (in;out;sampleRate)
 
 Parameter|Type|Description
 ------------|------------|----
+success|INT32|``1`` on success
 in|TEXT|Input file path
 out|TEXT|Output file path
 sampleRate|INT32|Sample rate
