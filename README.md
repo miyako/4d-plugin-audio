@@ -3,37 +3,23 @@
 
 4D plugin to record and play audio on OS X 10.6 and later.
 
-##Platform
 
-| carbon | cocoa | win32 | win64 |
-|:------:|:-----:|:---------:|:---------:|
-|🆗|🚫|🚫|🚫|
 
-Commands
----
+###Recording
 
-```c
-// --- Devices
-AUDIO_DEVICE_LIST
+```
+  //destination must be "aif"
+$path:=System folder(Desktop)+"My Recording.aif"
 
-// --- Record
-AUDIO_End_recording
-AUDIO_Begin_recording
-AUDIO_Is_recording
-
-// --- Play
-AUDIO_Open_file
-AUDIO_CLOSE
-AUDIO_PLAY
-AUDIO_PAUSE
-AUDIO_RESUME
-AUDIO_STOP
-AUDIO_Is_playing
-AUDIO_Get_duration
-AUDIO_Get_time
-AUDIO_SET_TIME
-
-// --- Convert
-AUDIO_Convert
-
+  //the default input device (see system preferences) is used
+If (0=AUDIO Is recording )  //only 1 at a time
+	$success:=AUDIO Begin recording ($path)
+	Repeat 
+		DELAY PROCESS(Current process;0)
+	Until (Caps lock down)
+	
+	  //the path is returned
+	SHOW ON DISK(AUDIO End recording )
+	
+End if 
 ```
