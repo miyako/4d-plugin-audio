@@ -54,6 +54,7 @@ AUDIO CLOSE ($audio)
 
 ```
 $inPath:=System folder(Desktop)+"My Recording.aif"
+  //always aac
 $outPath:=System folder(Desktop)+"My Recording.aac"
 
 $sampleRate:=22050
