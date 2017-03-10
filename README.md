@@ -60,3 +60,5 @@ $outPath:=System folder(Desktop)+"My Recording.aac"
 $sampleRate:=22050
 $success:=AUDIO Convert ($inPath;$outPath;$sampleRate)
 ```
+
+**Note**: The idea is to record in ``AIF`` and then convert to ``AAC`` once the record is complete.
