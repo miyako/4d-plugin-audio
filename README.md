@@ -23,3 +23,28 @@ If (0=AUDIO Is recording )  //only 1 at a time
 	
 End if 
 ```
+
+##Playing
+```
+$path:=System folder(Desktop)+"My Recording.aif"
+
+$audio:=AUDIO Open file ($path)
+
+C_TIME($time;$duration)
+$time:=AUDIO Get time ($audio)  //current time
+$duration:=AUDIO Get duration ($audio)  //total
+AUDIO SET TIME ($audio;$time)  //to start from middle
+
+  //the default output device (see system preferences) is used
+AUDIO PLAY ($audio)
+AUDIO PAUSE ($audio)
+AUDIO RESUME ($audio)
+
+While (1=AUDIO Is playing ($audio) & Not(Caps lock down)
+	DELAY PROCESS(Current process;0)
+End while 
+
+AUDIO STOP ($audio)
+
+AUDIO CLOSE ($audio)
+```
