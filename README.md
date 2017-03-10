@@ -7,7 +7,7 @@
 
 | carbon | cocoa | win32 | win64 |
 |:------:|:-----:|:---------:|:---------:|
-|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|
+|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|<img src="https://cloud.githubusercontent.com/assets/1725068/22371562/1b091f0a-e4db-11e6-8458-8653954a7cce.png" width="24" height="24" />|||
 
 ###Version
 
@@ -70,3 +70,80 @@ $success:=AUDIO Convert ($inPath;$outPath;$sampleRate)
 ```
 
 **Note**: The idea is to record in ``AIF`` and then convert to ``AAC`` once the recording is complete.
+
+##Syntax
+
+```
+recording:=AUDIO Is recording
+```
+
+Parameter|Type|Description
+------------|------------|----
+recording|INT32|``1`` if recording
+
+```
+recording:=AUDIO Begin recording (path)
+```
+
+Parameter|Type|Description
+------------|------------|----
+recording|INT32|``1`` on success
+path|TEXT|Output file path
+
+```
+path:=AUDIO End recording
+```
+
+Parameter|Type|Description
+------------|------------|----
+path|TEXT|Output file path
+
+```
+audio:=AUDIO Open file (path)
+```
+
+Parameter|Type|Description
+------------|------------|----
+path|TEXT|Output file path
+audio|INT32|A global reference
+
+```
+time:=AUDIO Get time (audio)
+AUDIO SET TIME (audio;time) 
+```
+
+Parameter|Type|Description
+------------|------------|----
+audio|INT32|A global reference
+time|TIME|Current position
+
+```
+duration:=AUDIO Get duration (audio) 
+```
+
+Parameter|Type|Description
+------------|------------|----
+audio|INT32|A global reference
+duration|TIME|Total time
+
+```
+AUDIO PLAY (audio)
+AUDIO PAUSE (audio)
+AUDIO RESUME (audio)
+AUDIO STOP (audio)
+AUDIO CLOSE (audio)
+```
+
+Parameter|Type|Description
+------------|------------|----
+audio|INT32|A global reference
+
+```
+success:=AUDIO Convert (in;out;sampleRate)
+```
+
+Parameter|Type|Description
+------------|------------|----
+in|TEXT|Input file path
+out|TEXT|Output file path
+sampleRate|INT32|Sample rate
