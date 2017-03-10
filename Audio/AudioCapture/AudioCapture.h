@@ -27,6 +27,8 @@
 	BOOL								running;
 }
 
+- (id)initWithPath:(NSString *)path;
+
 @property(copy)					NSString	*outputFile;
 @property(getter=isRecording)	BOOL		recording;
 @property(getter=isRunning)		BOOL		running;

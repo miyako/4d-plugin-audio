@@ -184,7 +184,7 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 			err = AudioUnitInitialize(effectAudioUnit);
 		
 		if (noErr != err) {
-			NSLog(@"Failed to set up audio units (%d)", err);
+			NSLog(@"Failed to set up audio units (%d)", (int)err);
 			
 			didSetUpAudioUnits = NO;
 			bzero(&currentInputASBD, sizeof(currentInputASBD));
@@ -216,7 +216,7 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 			err = ExtAudioFileSetProperty(extAudioFile, kExtAudioFileProperty_ClientDataFormat, sizeof(currentInputASBD), &currentInputASBD);
 		
 		if (noErr != err) {
-			NSLog(@"Failed to set up ExtAudioFile (%d)", err);
+			NSLog(@"Failed to set up ExtAudioFile (%d)", (int)err);
 			
 			ExtAudioFileDispose(extAudioFile);
 			extAudioFile = NULL;
