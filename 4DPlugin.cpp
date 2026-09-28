@@ -37,6 +37,7 @@ std::map<uint32_t, NSSound*> soundFileRefs;
 // AUDIO_SET_TIME are NOT routed through PA_RunInMainProcess, so they can be
 // called concurrently from more than one 4D process/thread. soundFileRefs
 // is a plain std::map, which is not safe for concurrent read/insert/erase.
+// This mutex serializes all access to it.
 static std::mutex soundFileRefsMutex;
 
 // --- soundFileRefs
