@@ -1,1 +1,3 @@
 build/*
+.vs/Audio/v17/*
+Audio.vcxproj.user
