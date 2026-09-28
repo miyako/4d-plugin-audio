@@ -52,6 +52,18 @@
 #include <CoreAudio/CoreAudio.h>
 #include <vector>
 
+// See the identical block in AudioDevice.h for the full explanation: newer
+// SDKs (Xcode 26.6 / macOS 26.5 SDK) no longer expose Apple's underscore-free
+// verify_noerr via the Carbon/CoreServices include chain. AudioDeviceList.h
+// is included both by AudioDeviceList.cpp (which also includes
+// AudioDevice.h, so it's already covered there) and by 4DPlugin.cpp
+// directly - and 4DPlugin.cpp calls verify_noerr itself (in
+// AUDIO_DEVICE_LIST) without ever including AudioDevice.h. The #ifndef guard
+// makes this redundant-but-harmless in files that get both headers.
+#ifndef verify_noerr
+	#define verify_noerr(errorCode) do { OSStatus _voe_err = (OSStatus)(errorCode); (void)_voe_err; } while(0)
+#endif
+
 class AudioDeviceList {
 public:
 	struct Device {
