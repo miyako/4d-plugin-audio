@@ -68,6 +68,8 @@
 		D1AD482C1E72A5CB00E8DAA2 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1AD482B1E72A5CB00E8DAA2 /* CoreAudio.framework */; };
 		D1AD482F1E72A5F300E8DAA2 /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1AD482D1E72A5F200E8DAA2 /* AudioToolbox.framework */; };
 		D1AD48301E72A5F300E8DAA2 /* AudioUnit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1AD482E1E72A5F300E8DAA2 /* AudioUnit.framework */; };
+		D1CBF2DC306A10C5002705EE /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1CBF2DB306A10C5002705EE /* AVFoundation.framework */; };
+		D1CBF2DE306A10D3002705EE /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1CBF2DD306A10D3002705EE /* CoreMedia.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -148,6 +150,8 @@
 		D1AD482B1E72A5CB00E8DAA2 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
 		D1AD482D1E72A5F200E8DAA2 /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 		D1AD482E1E72A5F300E8DAA2 /* AudioUnit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioUnit.framework; path = System/Library/Frameworks/AudioUnit.framework; sourceTree = SDKROOT; };
+		D1CBF2DB306A10C5002705EE /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		D1CBF2DD306A10D3002705EE /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,6 +159,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D1CBF2DE306A10D3002705EE /* CoreMedia.framework in Frameworks */,
+				D1CBF2DC306A10C5002705EE /* AVFoundation.framework in Frameworks */,
 				D1AD482F1E72A5F300E8DAA2 /* AudioToolbox.framework in Frameworks */,
 				D1AD48301E72A5F300E8DAA2 /* AudioUnit.framework in Frameworks */,
 				D1AD482C1E72A5CB00E8DAA2 /* CoreAudio.framework in Frameworks */,
@@ -175,6 +181,7 @@
 				08FB77ADFE841716C02AAC07 /* Source */,
 				089C167CFE841241C02AAC07 /* Resources */,
 				089C1671FE841209C02AAC07 /* External Frameworks and Libraries */,
+				D1CBF2DA306A10C5002705EE /* Frameworks */,
 				189286360695AD8900B05D6E /* Products */,
 			);
 			name = Audio;
@@ -325,6 +332,15 @@
 				D1AD48221E72A36700E8DAA2 /* AudioDeviceList.h */,
 			);
 			path = AudioDevice;
+			sourceTree = "<group>";
+		};
+		D1CBF2DA306A10C5002705EE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D1CBF2DD306A10D3002705EE /* CoreMedia.framework */,
+				D1CBF2DB306A10C5002705EE /* AVFoundation.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
