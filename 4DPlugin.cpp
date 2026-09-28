@@ -18,7 +18,10 @@
 #include <CoreAudio/CoreAudio.h>
 
 //#include <CoreMedia/CoreMedia.h>//10.7
-#import <QTKit/QTKit.h>//10.6
+// QTKit was fully removed from the SDK years ago (see AudioCapture.mm, which
+// has been migrated to AVFoundation). This file never used any QTKit symbol
+// directly - AudioCapture.h only forward-declares its capture classes - so
+// the import is simply deleted rather than replaced.
 
 #import <AudioUnit/AudioUnit.h>
 #import <AudioToolbox/AudioToolbox.h>

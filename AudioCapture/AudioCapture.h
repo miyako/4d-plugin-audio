@@ -2,16 +2,17 @@
 #import <AudioUnit/AudioUnit.h>
 #import <AudioToolbox/AudioToolbox.h>
 
-@class QTCaptureSession;
-@class QTCaptureDeviceInput;
-@class QTCaptureDecompressedAudioOutput;
+@class AVCaptureSession;
+@class AVCaptureDeviceInput;
+@class AVCaptureAudioDataOutput;
 
 @interface AudioCapture : NSObject {
 	
 @private	
-	QTCaptureSession					*captureSession;
-	QTCaptureDeviceInput				*captureAudioDeviceInput;
-	QTCaptureDecompressedAudioOutput	*captureAudioDataOutput;	
+	AVCaptureSession					*captureSession;
+	AVCaptureDeviceInput				*captureAudioDeviceInput;
+	AVCaptureAudioDataOutput			*captureAudioDataOutput;
+	dispatch_queue_t					captureAudioDataOutputQueue;
 	
 	AudioUnit							effectAudioUnit;
 	ExtAudioFileRef						extAudioFile;

@@ -1,6 +1,40 @@
 #import "AudioCapture.h"
 
-#import <QTKit/QTKit.h>
+#import <AVFoundation/AVFoundation.h>
+#import <CoreMedia/CoreMedia.h>
+
+/*
+ Migrated from QTKit to AVFoundation.
+ 
+ QTKit (QTCaptureSession / QTCaptureDeviceInput / QTCaptureDecompressedAudioOutput)
+ was deprecated by Apple in OS X 10.9 and its headers/framework have since been
+ removed from the SDK entirely - "'QTKit/QTKit.h' file not found" on any current
+ Xcode/SDK is expected, not a configuration problem. This file now uses the
+ AVFoundation equivalents:
+ 
+   QTCaptureDevice                   -> AVCaptureDevice
+   QTCaptureSession                  -> AVCaptureSession
+   QTCaptureDeviceInput               -> AVCaptureDeviceInput
+   QTCaptureDecompressedAudioOutput   -> AVCaptureAudioDataOutput
+   QTSampleBuffer / QTFormatDescription -> CMSampleBufferRef / CMFormatDescriptionRef
+ 
+ IMPORTANT - project/plist changes this migration ALSO requires, which live
+ outside the files in this repo and must be done in the Xcode project / the
+ host app's Info.plist:
+ 
+  1. Link AVFoundation.framework and CoreMedia.framework; remove QTKit.framework
+     from "Link Binary With Libraries" if it's still listed.
+  2. macOS requires an NSMicrophoneUsageDescription entry in Info.plist for any
+     process that requests microphone access (this is enforced by TCC and is
+     unrelated to compiling - QTKit predates this entirely, so it's new).
+     Without it, AVCaptureDeviceInput creation / session start will fail (and
+     on some OS versions the requesting process can be terminated outright)
+     rather than silently no-op. Since this is a 4D plugin, the usage
+     description has to be present in *the host application's* Info.plist
+     (i.e. 4D.app's, or your built runtime's), not just the plugin bundle.
+     The user will be shown the standard system mic-access prompt the first
+     time AUDIO_Begin_recording actually starts the capture session.
+*/
 
 static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 													AudioUnitRenderActionFlags *	ioActionFlags,
@@ -8,6 +42,9 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 													UInt32							inBusNumber,
 													UInt32							inNumberFrames,
 													AudioBufferList *				ioData);
+
+@interface AudioCapture () <AVCaptureAudioDataOutputSampleBufferDelegate>
+@end
 
 @implementation AudioCapture
 
@@ -21,87 +58,98 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 	
 	self.outputFile = path;
 	
-	QTCaptureDevice *audioDevice = [QTCaptureDevice defaultInputDeviceWithMediaType:QTMediaTypeSound];
+	AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
 	
-	BOOL success;
-	NSError *error;
-	
-	success = [audioDevice open:&error];
-	
-	if (success) {
+	if(audioDevice){
 		
-		captureSession = [[QTCaptureSession alloc]init];
-		captureAudioDeviceInput = [[QTCaptureDeviceInput alloc] initWithDevice:audioDevice];
-		success = [captureSession addInput:captureAudioDeviceInput error:&error];
+		NSError *error = nil;
 		
-		if (!success) {
-			[captureAudioDeviceInput release];
-			captureAudioDeviceInput = nil;
-			[audioDevice close];
-			[captureSession release];
-			captureSession = nil;
-		}else{
+		/* Unlike QTCaptureDevice, AVCaptureDevice has no separate open/close step -
+		   AVCaptureDeviceInput acquires/releases the device as it's added to /
+		   removed from a running session. */
+		captureAudioDeviceInput = [[AVCaptureDeviceInput alloc] initWithDevice:audioDevice error:&error];
 		
-			captureAudioDataOutput = [[QTCaptureDecompressedAudioOutput alloc]init];
-			[captureAudioDataOutput setDelegate:self];
-			success = [captureSession addOutput:captureAudioDataOutput error:&error];
+		if(captureAudioDeviceInput){
 			
-			if (!success) {
-				[captureAudioDeviceInput release];
-				captureAudioDeviceInput = nil;
-				[audioDevice close];		
-				[captureAudioDataOutput release];
-				captureAudioDataOutput = nil;
-				[captureSession release];
-				captureSession = nil;
-			}else{
-				// Previously there was no "else" here: even after addOutput
-				// failed and released/nilled out captureSession etc. above,
-				// execution fell through into the audio-unit setup and could
-				// end with [captureSession startRunning] on a nil session and
-				// running set to YES, reporting success for a capture session
-				// that was never actually created.
+			captureSession = [[AVCaptureSession alloc]init];
 			
-				/* Create an effect audio unit to add an effect to the audio before it is written to a file. */
-				AudioComponentDescription effectAudioUnitComponentDescription;
-				effectAudioUnitComponentDescription.componentType = kAudioUnitType_Effect;
-				effectAudioUnitComponentDescription.componentSubType = kAudioUnitSubType_GraphicEQ;
-				effectAudioUnitComponentDescription.componentManufacturer = kAudioUnitManufacturer_Apple;
-				effectAudioUnitComponentDescription.componentFlags = 0;
-				effectAudioUnitComponentDescription.componentFlagsMask = 0;
+			if([captureSession canAddInput:captureAudioDeviceInput]){
 				
-				AudioComponent effectAudioUnitComponent = AudioComponentFindNext(NULL, &effectAudioUnitComponentDescription);
+				[captureSession addInput:captureAudioDeviceInput];
 				
-				OSStatus err = noErr;
+				captureAudioDataOutput = [[AVCaptureAudioDataOutput alloc]init];
+				captureAudioDataOutputQueue = dispatch_queue_create("com.miyako.4dplugin.audio.capture", DISPATCH_QUEUE_SERIAL);
+				[captureAudioDataOutput setSampleBufferDelegate:self queue:captureAudioDataOutputQueue];
 				
-				err = AudioComponentInstanceNew(effectAudioUnitComponent, &effectAudioUnit);
-				
-				if (noErr == err) {
-					/* Set a callback on the effect unit that will supply the audio buffers received from the audio data output. */
-					AURenderCallbackStruct renderCallbackStruct;
-					renderCallbackStruct.inputProc = PushCurrentInputBufferIntoAudioUnit;
-					renderCallbackStruct.inputProcRefCon = self;
-					err = AudioUnitSetProperty(effectAudioUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &renderCallbackStruct, sizeof(renderCallbackStruct));	    
-				}
-				
-				if (noErr != err) {
-					if (effectAudioUnit) {
-						AudioComponentInstanceDispose(effectAudioUnit);
-						effectAudioUnit = NULL;
+				if([captureSession canAddOutput:captureAudioDataOutput]){
+					
+					[captureSession addOutput:captureAudioDataOutput];
+					
+					/* Create an effect audio unit to add an effect to the audio before it is written to a file. */
+					AudioComponentDescription effectAudioUnitComponentDescription;
+					effectAudioUnitComponentDescription.componentType = kAudioUnitType_Effect;
+					effectAudioUnitComponentDescription.componentSubType = kAudioUnitSubType_GraphicEQ;
+					effectAudioUnitComponentDescription.componentManufacturer = kAudioUnitManufacturer_Apple;
+					effectAudioUnitComponentDescription.componentFlags = 0;
+					effectAudioUnitComponentDescription.componentFlagsMask = 0;
+					
+					AudioComponent effectAudioUnitComponent = AudioComponentFindNext(NULL, &effectAudioUnitComponentDescription);
+					
+					OSStatus err = noErr;
+					
+					err = AudioComponentInstanceNew(effectAudioUnitComponent, &effectAudioUnit);
+					
+					if (noErr == err) {
+						/* Set a callback on the effect unit that will supply the audio buffers received from the audio data output. */
+						AURenderCallbackStruct renderCallbackStruct;
+						renderCallbackStruct.inputProc = PushCurrentInputBufferIntoAudioUnit;
+						renderCallbackStruct.inputProcRefCon = self;
+						err = AudioUnitSetProperty(effectAudioUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &renderCallbackStruct, sizeof(renderCallbackStruct));
 					}
 					
+					if (noErr != err) {
+						if (effectAudioUnit) {
+							AudioComponentInstanceDispose(effectAudioUnit);
+							effectAudioUnit = NULL;
+						}
+						
+						[captureSession removeInput:captureAudioDeviceInput];
+						[captureSession removeOutput:captureAudioDataOutput];
+						
+						[captureAudioDataOutput release];
+						captureAudioDataOutput = nil;
+						[captureAudioDeviceInput release];
+						captureAudioDeviceInput = nil;
+						[captureSession release];
+						captureSession = nil;
+					}else{
+						[captureSession startRunning];
+						[self setRunning:YES];
+					}
+					
+				}else{
+					/* couldn't add the output - tear down what we already built */
+					[captureAudioDataOutput release];
+					captureAudioDataOutput = nil;
+					[captureSession removeInput:captureAudioDeviceInput];
 					[captureAudioDeviceInput release];
 					captureAudioDeviceInput = nil;
-					[audioDevice close];
-					
 					[captureSession release];
 					captureSession = nil;
-				}else{
-					[captureSession startRunning];
-					[self setRunning:YES];
 				}
+				
+			}else{
+				/* couldn't add the input */
+				[captureAudioDeviceInput release];
+				captureAudioDeviceInput = nil;
+				[captureSession release];
+				captureSession = nil;
 			}
+			
 		}
+		/* if captureAudioDeviceInput is nil here, the device couldn't be opened -
+		   commonly a denied/missing microphone permission (see the note above
+		   about NSMicrophoneUsageDescription). `error` describes why. */
 	}
 	
 	return self;
@@ -116,12 +164,8 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 		[self setRunning:NO];
 	}
 	
-	if(captureAudioDeviceInput){
-		QTCaptureDevice *audioDevice = [captureAudioDeviceInput device];
-		if(audioDevice){
-			if ([audioDevice isOpen])
-				[audioDevice close];
-		}
+	if(captureAudioDataOutput){
+		[captureAudioDataOutput setSampleBufferDelegate:nil queue:NULL];
 	}
 	
 	if(captureSession){
@@ -136,14 +180,15 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 		[captureAudioDataOutput release];
 	}
 	
+	if(captureAudioDataOutputQueue){
+		dispatch_release(captureAudioDataOutputQueue);
+		captureAudioDataOutputQueue = NULL;
+	}
+	
 	if (extAudioFile){
 		ExtAudioFileDispose(extAudioFile);
 	}
 	
-	// Previously missing entirely: effectAudioUnit (created in initWithPath:
-	// via AudioComponentInstanceNew) was only disposed on the init failure
-	// path, never here. Every successful record -> release cycle leaked one
-	// AudioUnit component instance.
 	if (effectAudioUnit) {
 		if (didSetUpAudioUnits) {
 			AudioUnitUninitialize(effectAudioUnit);
@@ -157,41 +202,43 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 	[super dealloc];
 }
 
-- (void)captureOutput:(QTCaptureOutput *)captureOutput didOutputAudioSampleBuffer:(QTSampleBuffer *)sampleBuffer fromConnection:(QTCaptureConnection *)connection
+- (void)captureOutput:(AVCaptureOutput *)captureOutput didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection
 {
 	OSStatus err = noErr;
 	
 	BOOL isRecording = [self isRecording];
 	
-    /* Get the sample buffer's AudioStreamBasicDescription, which will be used to set the input format of the effect audio unit and the ExtAudioFile. */
-	QTFormatDescription *formatDescription = [sampleBuffer formatDescription];
-    NSValue *sampleBufferASBDValue = [formatDescription attributeForKey:QTFormatDescriptionAudioStreamBasicDescriptionAttribute];
-    if (!sampleBufferASBDValue)
-        return;
-    
-    AudioStreamBasicDescription sampleBufferASBD = {0};
-    [sampleBufferASBDValue getValue:&sampleBufferASBD];    
-    
-    if ((sampleBufferASBD.mChannelsPerFrame != currentInputASBD.mChannelsPerFrame) || (sampleBufferASBD.mSampleRate != currentInputASBD.mSampleRate)) {
-        /* Although QTCaptureAudioDataOutput guarantees that it will output sample buffers in the canonical format, the number of channels or the
-         sample rate of the audio can changes at any time while the capture session is running. If this occurs, the audio unit receiving the buffers
-         from the QTCaptureAudioDataOutput needs to be reconfigured with the new format. This also must be done when a buffer is received for the
-         first time. */
-        
-        currentInputASBD = sampleBufferASBD;
-        
-        if (didSetUpAudioUnits) {
-            /* The audio units were previously set up, so they must be uninitialized now. */
-            AudioUnitUninitialize(effectAudioUnit);
+	/* Get the sample buffer's AudioStreamBasicDescription, which will be used to set the input format of the effect audio unit and the ExtAudioFile. */
+	CMFormatDescriptionRef formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer);
+	if (!formatDescription)
+		return;
+	
+	const AudioStreamBasicDescription *sampleBufferASBDPtr = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription);
+	if (!sampleBufferASBDPtr)
+		return;
+	
+	AudioStreamBasicDescription sampleBufferASBD = *sampleBufferASBDPtr;
+	
+	if ((sampleBufferASBD.mChannelsPerFrame != currentInputASBD.mChannelsPerFrame) || (sampleBufferASBD.mSampleRate != currentInputASBD.mSampleRate)) {
+		/* Although AVCaptureAudioDataOutput guarantees that it will output sample buffers in the canonical format, the number of channels or the
+		 sample rate of the audio can changes at any time while the capture session is running. If this occurs, the audio unit receiving the buffers
+		 from the AVCaptureAudioDataOutput needs to be reconfigured with the new format. This also must be done when a buffer is received for the
+		 first time. */
+		
+		currentInputASBD = sampleBufferASBD;
+		
+		if (didSetUpAudioUnits) {
+			/* The audio units were previously set up, so they must be uninitialized now. */
+			AudioUnitUninitialize(effectAudioUnit);
 			
 			/* If recording was in progress, the recording needs to be stopped because the audio format changed. */
 			if (extAudioFile) {
 				ExtAudioFileDispose(extAudioFile);
 				extAudioFile = NULL;
 			}
-        } else {
-            didSetUpAudioUnits = YES;
-        }
+		} else {
+			didSetUpAudioUnits = YES;
+		}
 		
 		/* Set the input and output formats of the effect audio unit to match that of the sample buffer. */
 		err = AudioUnitSetProperty(effectAudioUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &currentInputASBD, sizeof(currentInputASBD));
@@ -208,7 +255,15 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 			didSetUpAudioUnits = NO;
 			bzero(&currentInputASBD, sizeof(currentInputASBD));
 		}
-    }
+	}
+	
+	if (currentInputASBD.mChannelsPerFrame == 0) {
+		/* No valid format established (or the format setup above just failed) -
+		   nothing safe to do with this buffer. Without this guard,
+		   (mChannelsPerFrame - 1) below would underflow (it's unsigned) and
+		   drive an enormous calloc, which is a real crash risk. */
+		return;
+	}
 	
 	if (isRecording && !extAudioFile) {
 		/* Start recording by creating an ExtAudioFile and configuring it with the same sample rate and channel layout as those of the current sample buffer. */
@@ -222,8 +277,8 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 		recordedASBD.mChannelsPerFrame = currentInputASBD.mChannelsPerFrame;
 		recordedASBD.mBitsPerChannel = 16;
 		
-		NSData *inputChannelLayoutData = [formatDescription attributeForKey:QTFormatDescriptionAudioChannelLayoutAttribute];
-		AudioChannelLayout *recordedChannelLayout = (AudioChannelLayout *)[inputChannelLayoutData bytes];
+		size_t channelLayoutSize = 0;
+		const AudioChannelLayout *recordedChannelLayout = CMAudioFormatDescriptionGetChannelLayout(formatDescription, &channelLayoutSize);
 		
 		err = ExtAudioFileCreateWithURL((CFURLRef)[NSURL fileURLWithPath:[self outputFile]],
 										kAudioFileAIFFType,
@@ -237,49 +292,72 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 		if (noErr != err) {
 			NSLog(@"Failed to set up ExtAudioFile (%d)", (int)err);
 			
-			ExtAudioFileDispose(extAudioFile);
-			extAudioFile = NULL;
+			if (extAudioFile) {
+				ExtAudioFileDispose(extAudioFile);
+				extAudioFile = NULL;
+			}
 		}
 	} else if (!isRecording && extAudioFile) {
 		/* Stop recording by disposing of the ExtAudioFile. */
 		ExtAudioFileDispose(extAudioFile);
 		extAudioFile = NULL;
 	}
-    
-    NSUInteger numberOfFrames = [sampleBuffer numberOfSamples];	/* -[QTSampleBuffer numberOfSamples] corresponds to the number of CoreAudio audio frames. */
 	
-    /* In order to render continuously, the effect audio unit needs a new time stamp for each buffer. Use the number of frames for each unit of time. */
-    currentSampleTime += (double)numberOfFrames;
-    
-    AudioTimeStamp timeStamp = {0};
-    timeStamp.mSampleTime = currentSampleTime;
-    timeStamp.mFlags |= kAudioTimeStampSampleTimeValid;		
-    
-    AudioUnitRenderActionFlags flags = 0;
-    
-    /* Create an AudioBufferList large enough to hold the number of frames from the sample buffer in 32-bit floating point PCM format. */
-    AudioBufferList *outputABL = (AudioBufferList *)calloc(1, sizeof(*outputABL) + (currentInputASBD.mChannelsPerFrame - 1)*sizeof(outputABL->mBuffers[0]));
-    outputABL->mNumberBuffers = currentInputASBD.mChannelsPerFrame;
+	CMItemCount numberOfFrames = CMSampleBufferGetNumSamples(sampleBuffer);	/* corresponds to the number of CoreAudio audio frames, same as -[QTSampleBuffer numberOfSamples] before it. */
+	
+	/* In order to render continuously, the effect audio unit needs a new time stamp for each buffer. Use the number of frames for each unit of time. */
+	currentSampleTime += (double)numberOfFrames;
+	
+	AudioTimeStamp timeStamp = {0};
+	timeStamp.mSampleTime = currentSampleTime;
+	timeStamp.mFlags |= kAudioTimeStampSampleTimeValid;		
+	
+	AudioUnitRenderActionFlags flags = 0;
+	
+	/* Create an AudioBufferList large enough to hold the number of frames from the sample buffer in 32-bit floating point PCM format. */
+	AudioBufferList *outputABL = (AudioBufferList *)calloc(1, sizeof(*outputABL) + (currentInputASBD.mChannelsPerFrame - 1)*sizeof(outputABL->mBuffers[0]));
+	outputABL->mNumberBuffers = currentInputASBD.mChannelsPerFrame;
 	UInt32 channelIndex;
 	for (channelIndex = 0; channelIndex < currentInputASBD.mChannelsPerFrame; channelIndex++) {
-		UInt32 dataSize = numberOfFrames * currentInputASBD.mBytesPerFrame;
+		UInt32 dataSize = (UInt32)numberOfFrames * currentInputASBD.mBytesPerFrame;
 		outputABL->mBuffers[channelIndex].mDataByteSize = dataSize;
 		outputABL->mBuffers[channelIndex].mData = malloc(dataSize);
 		outputABL->mBuffers[channelIndex].mNumberChannels = 1;
 	}
 	
 	/*
-	 Get an audio buffer list from the sample buffer and assign it to the currentInputAudioBufferList instance variable.
-	 The the effect audio unit render callback, PushCurrentInputBufferIntoAudioUnit(), can access this value by calling the currentInputAudioBufferList method.
+	 Pull an audio buffer list out of the CMSampleBuffer and assign it to the currentInputAudioBufferList instance variable.
+	 The effect audio unit render callback, PushCurrentInputBufferIntoAudioUnit(), accesses this value by calling the currentInputAudioBufferList method.
+	 CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer follows the Create rule: blockBuffer must be released when we're done with it.
 	 */
-    currentInputAudioBufferList = [sampleBuffer audioBufferListWithOptions:QTSampleBufferAudioBufferListOptionAssure16ByteAlignment];
-    
-    /* Tell the effect audio unit to render. This will synchronously call PushCurrentInputBufferIntoAudioUnit(), which will feed the audio buffer list into the effect audio unit. */
-    err = AudioUnitRender(effectAudioUnit, &flags, &timeStamp, 0, numberOfFrames, outputABL);
-    currentInputAudioBufferList = NULL;
+	CMBlockBufferRef blockBuffer = NULL;
+	AudioBufferList capturedAudioBufferList;
+	size_t capturedAudioBufferListSize = 0;
 	
-	if ((noErr == err) && extAudioFile) {
-		err = ExtAudioFileWriteAsync(extAudioFile, numberOfFrames, outputABL);
+	err = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(sampleBuffer,
+																	&capturedAudioBufferListSize,
+																	&capturedAudioBufferList,
+																	sizeof(capturedAudioBufferList),
+																	NULL,
+																	NULL,
+																	kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment,
+																	&blockBuffer);
+	
+	if (noErr == err) {
+		
+		currentInputAudioBufferList = &capturedAudioBufferList;
+		
+		/* Tell the effect audio unit to render. This will synchronously call PushCurrentInputBufferIntoAudioUnit(), which will feed the audio buffer list into the effect audio unit. */
+		err = AudioUnitRender(effectAudioUnit, &flags, &timeStamp, 0, (UInt32)numberOfFrames, outputABL);
+		currentInputAudioBufferList = NULL;
+		
+		if ((noErr == err) && extAudioFile) {
+			err = ExtAudioFileWriteAsync(extAudioFile, (UInt32)numberOfFrames, outputABL);
+		}
+		
+		if (blockBuffer) {
+			CFRelease(blockBuffer);
+		}
 	}
 	
 	for (channelIndex = 0; channelIndex < currentInputASBD.mChannelsPerFrame; channelIndex++) {
@@ -288,7 +366,7 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 	free(outputABL);
 }
 
-/* Used by PushCurrentInputBufferIntoAudioUnit() to access the current audio buffer list that has been output by the QTCaptureAudioDataOutput. */
+/* Used by PushCurrentInputBufferIntoAudioUnit() to access the current audio buffer list that has been output by the AVCaptureAudioDataOutput. */
 - (AudioBufferList *)currentInputAudioBufferList
 {
 	return currentInputAudioBufferList;
