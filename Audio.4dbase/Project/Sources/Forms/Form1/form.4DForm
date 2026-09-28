@@ -1,0 +1,227 @@
+{
+	"destination": "detailScreen",
+	"rightMargin": 19,
+	"bottomMargin": 20,
+	"markerHeader": 15,
+	"markerBody": 200,
+	"markerBreak": 220,
+	"markerFooter": 240,
+	"events": [
+		"onLoad",
+		"onClick",
+		"onUnload",
+		"onTimer"
+	],
+	"method": "method.4dm",
+	"pageFormat": {
+		"paperName": "A4",
+		"paperWidth": "595pt",
+		"paperHeight": "842pt"
+	},
+	"pages": [
+		null,
+		{
+			"objects": {
+				"Begin": {
+					"type": "button",
+					"top": 91,
+					"left": 15,
+					"width": 100,
+					"height": 22,
+					"text": "Begin",
+					"class": "Default",
+					"focusable": false,
+					"method": "ObjectMethods/Begin.4dm",
+					"events": [
+						"onClick"
+					]
+				},
+				"End": {
+					"type": "button",
+					"top": 91,
+					"left": 143,
+					"width": 100,
+					"height": 22,
+					"text": "End",
+					"class": "Default",
+					"focusable": false,
+					"method": "ObjectMethods/End.4dm",
+					"events": [
+						"onClick"
+					]
+				},
+				"Is Recording": {
+					"type": "checkbox",
+					"top": 0,
+					"left": 20,
+					"width": 318,
+					"height": 25,
+					"text": "Is Recording",
+					"class": "Default",
+					"focusable": false,
+					"events": [
+						"onLoad",
+						"onClick"
+					]
+				},
+				"Play": {
+					"type": "button",
+					"top": 91,
+					"left": 263,
+					"width": 100,
+					"height": 22,
+					"text": "Play",
+					"class": "Default",
+					"focusable": false,
+					"method": "ObjectMethods/Play.4dm",
+					"events": [
+						"onClick"
+					]
+				},
+				"Play1": {
+					"type": "button",
+					"top": 131,
+					"left": 263,
+					"width": 100,
+					"height": 22,
+					"text": "Stop",
+					"class": "Default",
+					"focusable": false,
+					"method": "ObjectMethods/Play1.4dm",
+					"events": [
+						"onClick"
+					]
+				},
+				"Play2": {
+					"type": "button",
+					"top": 171,
+					"left": 263,
+					"width": 100,
+					"height": 22,
+					"text": "Pause",
+					"class": "Default",
+					"focusable": false,
+					"method": "ObjectMethods/Play2.4dm",
+					"events": [
+						"onClick"
+					]
+				},
+				"Play3": {
+					"type": "button",
+					"top": 211,
+					"left": 263,
+					"width": 100,
+					"height": 22,
+					"text": "Resume",
+					"class": "Default",
+					"focusable": false,
+					"method": "ObjectMethods/Play3.4dm",
+					"events": [
+						"onClick"
+					]
+				},
+				"Is Playing": {
+					"type": "checkbox",
+					"top": 40,
+					"left": 20,
+					"width": 318,
+					"height": 25,
+					"text": "Is Playing",
+					"class": "Default",
+					"focusable": false,
+					"events": [
+						"onLoad",
+						"onClick"
+					]
+				},
+				"RecordPath": {
+					"type": "input",
+					"top": 306,
+					"left": 32,
+					"width": 355,
+					"height": 16,
+					"visibility": "hidden",
+					"class": "Default",
+					"focusable": false,
+					"enterable": false,
+					"contextMenu": "none",
+					"dragging": "none",
+					"dropping": "none"
+				},
+				"PlayRef": {
+					"type": "input",
+					"top": 346,
+					"left": 32,
+					"width": 355,
+					"height": 16,
+					"visibility": "hidden",
+					"dataSourceTypeHint": "number",
+					"class": "Default",
+					"focusable": false,
+					"enterable": false,
+					"contextMenu": "none",
+					"dragging": "none",
+					"dropping": "none"
+				},
+				"Duration": {
+					"type": "input",
+					"top": 16,
+					"left": 263,
+					"width": 94,
+					"height": 16,
+					"dataSourceTypeHint": "time",
+					"class": "Default",
+					"focusable": false,
+					"enterable": false,
+					"contextMenu": "none",
+					"timeFormat": "hh_mm_ss",
+					"dragging": "none",
+					"dropping": "none",
+					"events": [
+						"onClick",
+						"onHeader",
+						"onPrintingBreak",
+						"onPrintingFooter",
+						"onDisplayDetail",
+						"onDataChange",
+						"onPrintingDetail"
+					]
+				},
+				"Time": {
+					"type": "progress",
+					"top": 266,
+					"left": 32,
+					"width": 355,
+					"height": 47,
+					"visibility": "hidden",
+					"min": 0,
+					"max": 100,
+					"graduationStep": 10,
+					"step": 10,
+					"enterable": true,
+					"class": "Default",
+					"method": "ObjectMethods/Time.4dm",
+					"events": [
+						"onClick",
+						"onDataChange"
+					]
+				}
+			}
+		}
+	],
+	"editor": {
+		"activeView": "ÉrÉÖÅ[ 1",
+		"defaultView": "ÉrÉÖÅ[ 1",
+		"views": {
+			"ÉrÉÖÅ[ 1": {},
+			"ÉrÉÖÅ[ 2": {},
+			"ÉrÉÖÅ[ 3": {},
+			"ÉrÉÖÅ[ 4": {},
+			"ÉrÉÖÅ[ 5": {},
+			"ÉrÉÖÅ[ 6": {},
+			"ÉrÉÖÅ[ 7": {},
+			"ÉrÉÖÅ[ 8": {},
+			"ÉrÉÖÅ[ 9": {}
+		}
+	}
+}

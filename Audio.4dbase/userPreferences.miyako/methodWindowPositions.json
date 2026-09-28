@@ -1,0 +1,74 @@
+{
+	"Sources/Methods/Method1.4dm": {
+		"left": 303,
+		"top": 173,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Methods/Method2.4dm": {
+		"left": 453,
+		"top": 143,
+		"width": 1038,
+		"height": 697
+	},
+	"Sources/Methods/Method3.4dm": {
+		"left": 294,
+		"top": 159,
+		"width": 820,
+		"height": 539
+	},
+	"Sources/Methods/Method4.4dm": {
+		"left": 303,
+		"top": 173,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Forms/Form1/method.4dm": {
+		"left": 506,
+		"top": 44,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Forms/Form1/ObjectMethods/Begin.4dm": {
+		"left": 467,
+		"top": 219,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Forms/Form1/ObjectMethods/End.4dm": {
+		"left": 519,
+		"top": 372,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Forms/Form1/ObjectMethods/Play.4dm": {
+		"left": 467,
+		"top": 219,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Forms/Form1/ObjectMethods/Play1.4dm": {
+		"left": 744,
+		"top": 209,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Forms/Form1/ObjectMethods/Play2.4dm": {
+		"left": 467,
+		"top": 219,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Forms/Form1/ObjectMethods/Play3.4dm": {
+		"left": 467,
+		"top": 219,
+		"width": 970,
+		"height": 678
+	},
+	"Sources/Forms/Form1/ObjectMethods/Time.4dm": {
+		"left": 554,
+		"top": 328,
+		"width": 970,
+		"height": 678
+	}
+}
