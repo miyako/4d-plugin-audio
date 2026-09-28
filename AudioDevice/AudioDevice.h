@@ -51,6 +51,24 @@
 #include <CoreServices/CoreServices.h>
 #include <CoreAudio/CoreAudio.h>
 
+// verify_noerr (and its siblings require/require_noerr/verify) are the
+// underscore-free convenience macros from Apple's <AssertMacros.h>. They are
+// only defined when __ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES is
+// set to 1 *before AssertMacros.h's first inclusion in the translation
+// unit*. Older SDKs had Carbon/CoreServices set that flag implicitly; on
+// newer SDKs (seen breaking CI with Xcode 26.6 / macOS 26.5 SDK:
+// "use of undeclared identifier 'verify_noerr'" in AudioDevice.cpp) they no
+// longer do, and by the time this header's own #include lines run, the
+// 4D-generated precompiled prefix header has typically already pulled in
+// Carbon.h/CoreServices.h (without the flag set), so simply defining the
+// flag and re-including <AssertMacros.h> here would be a no-op due to its
+// include guard. Providing our own fallback, guarded so it steps aside if
+// the macro is already available, keeps this file portable across SDKs
+// without depending on prefix-header contents we don't control.
+#ifndef verify_noerr
+	#define verify_noerr(errorCode) do { OSStatus _voe_err = (OSStatus)(errorCode); (void)_voe_err; } while(0)
+#endif
+
 class AudioDevice {
 public:
 	AudioDevice() : mID(kAudioDeviceUnknown) { }
