@@ -1,7 +1,7 @@
 # 4d-plugin-audio
 
 A 4D plugin for recording, playing back, converting, and enumerating audio
-devices on macOS (10.6+, Carbon/Cocoa) and Windows (32/64-bit).
+devices on macOS.
 
 This document is written for **4D developers** calling the plugin's commands
 from 4D code — it does not cover the plugin's internal C++/Objective-C
