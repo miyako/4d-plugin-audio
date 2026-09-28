@@ -26,9 +26,18 @@
 #include "AudioDeviceList.h"
 #include "CAStreamBasicDescription.h"
 
+#include <mutex>
+
 AudioCapture *capture;
 
 std::map<uint32_t, NSSound*> soundFileRefs;
+
+// AUDIO_Open_file / AUDIO_CLOSE / AUDIO_PLAY / AUDIO_PAUSE / AUDIO_RESUME /
+// AUDIO_STOP / AUDIO_Is_playing / AUDIO_Get_duration / AUDIO_Get_time /
+// AUDIO_SET_TIME are NOT routed through PA_RunInMainProcess, so they can be
+// called concurrently from more than one 4D process/thread. soundFileRefs
+// is a plain std::map, which is not safe for concurrent read/insert/erase.
+static std::mutex soundFileRefsMutex;
 
 // --- soundFileRefs
 
@@ -41,12 +50,18 @@ void _soundFileRefCreate(C_TEXT &path, C_LONGINT &index){
 	if(url){
 		NSSound *sound = [[NSSound alloc]initWithContentsOfURL:url byReference:YES];
 		[url release];
-		i++;
-		while (soundFileRefs.find(i) != soundFileRefs.end()) {
-			i++;
-		}
-		soundFileRefs.insert(std::map<uint32_t, NSSound*>::value_type(i, sound));
 		
+		if(sound){
+			std::lock_guard<std::mutex> lock(soundFileRefsMutex);
+			i++;
+			while (soundFileRefs.find(i) != soundFileRefs.end()) {
+				i++;
+			}
+			soundFileRefs.insert(std::map<uint32_t, NSSound*>::value_type(i, sound));
+		}
+		// if NSSound failed to load the file, sound is nil: leave i == 0
+		// so the caller gets a real failure indicator instead of a
+		// "valid" reference to a sound that doesn't exist.
 	}
 	
 	index.setIntValue(i);
@@ -55,6 +70,8 @@ void _soundFileRefCreate(C_TEXT &path, C_LONGINT &index){
 void _soundFileRefDelete(C_LONGINT &index){
 	
 	NSSound *sound = nil;
+	
+	std::lock_guard<std::mutex> lock(soundFileRefsMutex);
 	
 	std::map<uint32_t, NSSound*>::iterator pos = soundFileRefs.find(index.getIntValue());
 	
@@ -67,14 +84,20 @@ void _soundFileRefDelete(C_LONGINT &index){
 	
 }
 
+// Returns a +1 retained reference (or nil). This is deliberate: without it,
+// a sound could be looked up here, then erased+released by AUDIO_CLOSE on
+// another process/thread before the caller gets to use it, leading to a
+// use-after-free. Callers MUST [sound release] when done with it.
 NSSound *_soundFileRefGet(C_LONGINT &index){
 	
 	NSSound *sound = nil;
 	
+	std::lock_guard<std::mutex> lock(soundFileRefsMutex);
+	
 	std::map<uint32_t, NSSound*>::iterator pos = soundFileRefs.find(index.getIntValue());
 	
 	if(pos != soundFileRefs.end()) {
-		sound = pos->second;
+		sound = [pos->second retain];
 	}
 	
 	return sound;
@@ -321,18 +344,26 @@ void AUDIO_Begin_recording(PA_PluginParameters params)
 	
 	Param1.fromParamAtIndex(pParams, 1);
 	
-	if(capture) [capture release];
-	
 	NSString *path = Param1.copyPath();
 	
-	capture = [[AudioCapture alloc]initWithPath:path];
-	
-	if([capture isRunning]){
-		[capture setRecording:YES];
-		returnValue.setIntValue(1);
+	// path can be nil if the 4D text parameter was empty/invalid. Without
+	// this check, AudioCapture happily starts running and the first audio
+	// buffer callback does [NSURL fileURLWithPath:nil], which raises an
+	// uncaught NSInvalidArgumentException on the capture thread and
+	// crashes the process.
+	if(path){
+		
+		if(capture) [capture release];
+		
+		capture = [[AudioCapture alloc]initWithPath:path];
+		
+		if([capture isRunning]){
+			[capture setRecording:YES];
+			returnValue.setIntValue(1);
+		}
+		
+		[path release];
 	}
-	
-	[path release];
 	
 	returnValue.setReturn(pResult);
 }
@@ -370,8 +401,10 @@ void AUDIO_PLAY(sLONG_PTR *pResult, PackagePtr pParams)
 	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
-	if(sound)
+	if(sound){
 		[sound play];
+		[sound release];
+	}
 }
 
 void AUDIO_PAUSE(sLONG_PTR *pResult, PackagePtr pParams)
@@ -382,8 +415,10 @@ void AUDIO_PAUSE(sLONG_PTR *pResult, PackagePtr pParams)
 	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
-	if(sound)
+	if(sound){
 		[sound pause];
+		[sound release];
+	}
 }
 
 void AUDIO_RESUME(sLONG_PTR *pResult, PackagePtr pParams)
@@ -394,8 +429,10 @@ void AUDIO_RESUME(sLONG_PTR *pResult, PackagePtr pParams)
 	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
-	if(sound)
+	if(sound){
 		[sound resume];
+		[sound release];
+	}
 }
 
 void AUDIO_STOP(sLONG_PTR *pResult, PackagePtr pParams)
@@ -406,8 +443,10 @@ void AUDIO_STOP(sLONG_PTR *pResult, PackagePtr pParams)
 	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
-	if(sound)
+	if(sound){
 		[sound stop];
+		[sound release];
+	}
 }
 
 void AUDIO_Is_playing(sLONG_PTR *pResult, PackagePtr pParams)
@@ -419,8 +458,10 @@ void AUDIO_Is_playing(sLONG_PTR *pResult, PackagePtr pParams)
 	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
-	if(sound)
+	if(sound){
 		returnValue.setIntValue([sound isPlaying]);
+		[sound release];
+	}
 	
 	returnValue.setReturn(pResult);
 }
@@ -434,8 +475,10 @@ void AUDIO_Get_duration(sLONG_PTR *pResult, PackagePtr pParams)
 	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
-	if(sound)
+	if(sound){
 		returnValue.setSeconds([sound duration]);
+		[sound release];
+	}
 	
 	returnValue.setReturn(pResult);
 }
@@ -449,8 +492,10 @@ void AUDIO_Get_time(sLONG_PTR *pResult, PackagePtr pParams)
 	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
-	if(sound)
+	if(sound){
 		returnValue.setSeconds([sound currentTime]);
+		[sound release];
+	}
 	
 	returnValue.setReturn(pResult);
 }
@@ -465,8 +510,10 @@ void AUDIO_SET_TIME(sLONG_PTR *pResult, PackagePtr pParams)
 	
 	NSSound *sound = _soundFileRefGet(Param1);
 	
-	if(sound)
+	if(sound){
 		[sound setCurrentTime:Param2.getSeconds()];
+		[sound release];
+	}
 }
 
 #pragma mark Convert
@@ -514,7 +561,6 @@ bool GetFormatFromFileId (AudioFileID fileId, CAStreamBasicDescription &format)
 							}
 							if (found) break;
 						}
-						delete [] decoderIDs;
 						
 						if (!(i >= numFormats)) {
 							format = formatList[i].mASBD;
@@ -522,6 +568,9 @@ bool GetFormatFromFileId (AudioFileID fileId, CAStreamBasicDescription &format)
 						}
 						
 					}
+					// previously only freed inside the "if" above, leaking
+					// decoderIDs whenever AudioFormatGetProperty failed here
+					delete [] decoderIDs;
 				}
 			}
 			delete [] formatList;
@@ -629,7 +678,14 @@ void AUDIO_Convert(PA_PluginParameters params)
 						
 						CAStreamBasicDescription clientFormat = (inputFormat.mFormatID == kAudioFormatLinearPCM ? inputFormat : outputFormat);
 						UInt32 size = sizeof(clientFormat);
-						if(!ExtAudioFileSetProperty(infile, kExtAudioFileProperty_ClientDataFormat, size, &clientFormat)){
+						
+						// clientFormat.mBytesPerFrame is 0 for compressed formats
+						// (e.g. AudioFormatAAC() when the source file is itself
+						// compressed, not linear PCM). It is later used as a divisor
+						// below; dividing by it unchecked is a guaranteed crash
+						// (SIGFPE) when converting a non-PCM source file.
+						if(clientFormat.mBytesPerFrame != 0 &&
+						   !ExtAudioFileSetProperty(infile, kExtAudioFileProperty_ClientDataFormat, size, &clientFormat)){
 							
 							size = sizeof(clientFormat);
 							if(!ExtAudioFileSetProperty(outfile, kExtAudioFileProperty_ClientDataFormat, size, &clientFormat)){
@@ -659,7 +715,9 @@ void AUDIO_Convert(PA_PluginParameters params)
 											
 											UInt32 numFrames = (kSrcBufSize / clientFormat.mBytesPerFrame);
 											
-											if(!ExtAudioFileRead (infile, &numFrames, &fillBufList)){
+											OSStatus readErr = ExtAudioFileRead(infile, &numFrames, &fillBufList);
+											
+											if(!readErr){
 												
 												if (!numFrames){
 													returnValue.setIntValue(1);
@@ -668,6 +726,12 @@ void AUDIO_Convert(PA_PluginParameters params)
 												
 												if(ExtAudioFileWrite(outfile, numFrames, &fillBufList))
 													break;
+											}else{
+												// Previously: a read error fell through both
+												// branches with no break, spinning forever and
+												// hanging the AUDIO Convert call permanently.
+												// Treat any read error as end-of-conversion.
+												break;
 											}
 										}
 									}

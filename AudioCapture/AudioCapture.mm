@@ -54,45 +54,52 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 				captureAudioDataOutput = nil;
 				[captureSession release];
 				captureSession = nil;
-			}
+			}else{
+				// Previously there was no "else" here: even after addOutput
+				// failed and released/nilled out captureSession etc. above,
+				// execution fell through into the audio-unit setup and could
+				// end with [captureSession startRunning] on a nil session and
+				// running set to YES, reporting success for a capture session
+				// that was never actually created.
 			
-			/* Create an effect audio unit to add an effect to the audio before it is written to a file. */
-			AudioComponentDescription effectAudioUnitComponentDescription;
-			effectAudioUnitComponentDescription.componentType = kAudioUnitType_Effect;
-			effectAudioUnitComponentDescription.componentSubType = kAudioUnitSubType_GraphicEQ;
-			effectAudioUnitComponentDescription.componentManufacturer = kAudioUnitManufacturer_Apple;
-			effectAudioUnitComponentDescription.componentFlags = 0;
-			effectAudioUnitComponentDescription.componentFlagsMask = 0;
-			
-			AudioComponent effectAudioUnitComponent = AudioComponentFindNext(NULL, &effectAudioUnitComponentDescription);
-			
-			OSStatus err = noErr;
-			
-			err = AudioComponentInstanceNew(effectAudioUnitComponent, &effectAudioUnit);
-			
-			if (noErr == err) {
-				/* Set a callback on the effect unit that will supply the audio buffers received from the audio data output. */
-				AURenderCallbackStruct renderCallbackStruct;
-				renderCallbackStruct.inputProc = PushCurrentInputBufferIntoAudioUnit;
-				renderCallbackStruct.inputProcRefCon = self;
-				err = AudioUnitSetProperty(effectAudioUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &renderCallbackStruct, sizeof(renderCallbackStruct));	    
-			}
-			
-			if (noErr != err) {
-				if (effectAudioUnit) {
-					AudioComponentInstanceDispose(effectAudioUnit);
-					effectAudioUnit = NULL;
+				/* Create an effect audio unit to add an effect to the audio before it is written to a file. */
+				AudioComponentDescription effectAudioUnitComponentDescription;
+				effectAudioUnitComponentDescription.componentType = kAudioUnitType_Effect;
+				effectAudioUnitComponentDescription.componentSubType = kAudioUnitSubType_GraphicEQ;
+				effectAudioUnitComponentDescription.componentManufacturer = kAudioUnitManufacturer_Apple;
+				effectAudioUnitComponentDescription.componentFlags = 0;
+				effectAudioUnitComponentDescription.componentFlagsMask = 0;
+				
+				AudioComponent effectAudioUnitComponent = AudioComponentFindNext(NULL, &effectAudioUnitComponentDescription);
+				
+				OSStatus err = noErr;
+				
+				err = AudioComponentInstanceNew(effectAudioUnitComponent, &effectAudioUnit);
+				
+				if (noErr == err) {
+					/* Set a callback on the effect unit that will supply the audio buffers received from the audio data output. */
+					AURenderCallbackStruct renderCallbackStruct;
+					renderCallbackStruct.inputProc = PushCurrentInputBufferIntoAudioUnit;
+					renderCallbackStruct.inputProcRefCon = self;
+					err = AudioUnitSetProperty(effectAudioUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &renderCallbackStruct, sizeof(renderCallbackStruct));	    
 				}
 				
-				[captureAudioDeviceInput release];
-				captureAudioDeviceInput = nil;
-				[audioDevice close];
-				
-				[captureSession release];
-				captureSession = nil;
-			}else{
-				[captureSession startRunning];
-				[self setRunning:YES];
+				if (noErr != err) {
+					if (effectAudioUnit) {
+						AudioComponentInstanceDispose(effectAudioUnit);
+						effectAudioUnit = NULL;
+					}
+					
+					[captureAudioDeviceInput release];
+					captureAudioDeviceInput = nil;
+					[audioDevice close];
+					
+					[captureSession release];
+					captureSession = nil;
+				}else{
+					[captureSession startRunning];
+					[self setRunning:YES];
+				}
 			}
 		}
 	}
@@ -131,6 +138,18 @@ static OSStatus PushCurrentInputBufferIntoAudioUnit(void *							inRefCon,
 	
 	if (extAudioFile){
 		ExtAudioFileDispose(extAudioFile);
+	}
+	
+	// Previously missing entirely: effectAudioUnit (created in initWithPath:
+	// via AudioComponentInstanceNew) was only disposed on the init failure
+	// path, never here. Every successful record -> release cycle leaked one
+	// AudioUnit component instance.
+	if (effectAudioUnit) {
+		if (didSetUpAudioUnits) {
+			AudioUnitUninitialize(effectAudioUnit);
+		}
+		AudioComponentInstanceDispose(effectAudioUnit);
+		effectAudioUnit = NULL;
 	}
 	
 	[outputFile release];
