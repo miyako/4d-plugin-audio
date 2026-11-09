@@ -559,3 +559,85 @@ End if
 
 *Platform support: Carbon and Cocoa on macOS 10.6+; 32-bit and 64-bit
 Windows are listed as platform targets but are not yet implemented.*
+
+## Maintainer workflows
+
+**Bump version** and **Build** are independent manual Actions. Choose the
+intended branch in the Actions branch selector. Bump accepts `patch`, `minor`
+or `major`, checks out the immutable selected `github.sha`, validates a clean
+checkout and the remote branch, then commits only source version metadata.
+Its mandatory executable pre-push guard checks the receive-pack advertisement:
+exact old selected SHA, literal new commit SHA, HEAD, direct parent and target,
+with exactly one update. A late advance, rewind, deletion or same-result race
+fails closed. The nonforce push explicitly disables following tags, even when
+Git is configured to follow them. It creates no tag and does not start Build;
+dispatch again if the selected branch has moved.
+
+Build has **no inputs** and runs only via `workflow_dispatch`. Every checkout
+uses the selected `github.sha`; source metadata, not a tag or typed version,
+determines strict `X.Y.Z` and the release tag `vX.Y.Z`. There is no default-branch-only
+restriction. Publication is serialized across all branches by the constant
+`release-publication` concurrency group without cancelling a running build.
+
+### Source version contract
+
+The existing Bump header explicitly promised coordinated
+`MARKETING_VERSION`/`CURRENT_PROJECT_VERSION` and source plist version fields.
+Its implementation selected marketing first, and commit
+`5d695b4f255c3c6c97ab47241480cdf92facb280` advanced the three marketing
+settings and `Info.plist` to **1.0.8**, but left current at 1.0.0. This migration
+repairs those three current settings and the two source English display
+versions (previously 2.0) to that existing 1.0.8 authority, **without incrementing
+the release version**. This is a coordinated contract, not an independent
+build-counter contract.
+
+`.github/scripts/source_version.py` validates and bumps only
+`Audio.xcodeproj/project.pbxproj`, `Info.plist` and
+`English.lproj/InfoPlist.strings`. All three configurations must agree.
+Legitimate version-setting references are retained; unknown references,
+cycles, missing values and drift fail closed. Absent `CFBundleVersion` stays
+absent. BOM, line endings, file modes, localized copyright text and unrelated
+metadata are preserved. Prebuilt bundle metadata/binaries, 4D project/schema
+versions, `manifest.json`, and `English.lproj/locversion.plist` counters are
+not source version inputs and are not rewritten.
+
+### Publication and manual recovery
+
+Before native work, and again after universal-binary verification, signing,
+signature verification, both notarization submissions and DMG stapling, Build
+checks remote tags and authenticated release-list API pages, including
+**drafts on later pages**. Only a complete no-match succeeds. Authentication,
+404, network, malformed data and later-page errors stop publication.
+
+Publication uses create-only `POST git/refs` for the exact selected SHA,
+rejecting even a same-SHA tag race, then verifies the remote tag. A separate
+create-only release POST supplies explicit tag, selected SHA, name,
+`draft=false`, `prerelease=false`, and the original empty release body (no
+generated notes). ZIP and DMG are uploaded separately to the returned **new**
+release ID as `Audio-X.Y.Z.zip` and `Audio-X.Y.Z.dmg`.
+
+There is no update, deletion, clobber, rollback or automatic retry. Failures
+retain any created tag, release and successfully uploaded assets. On failure,
+inspect the workflow diagnostics, remote tag SHA, releases **including drafts**
+and asset list before taking any manual action; a failed response may still
+have created remote state. An existing version blocks another Build attempt.
+Resolve partial publication deliberately under maintainer review, or choose a
+new source version with Bump for a subsequent release. Never blindly rerun to
+replace a tag, release or asset.
+
+### Existing native caveats and local checks
+
+The release job is macOS-only: commit `fee31b8` deliberately removed the
+Windows build/download/merge jobs. The existing packaged Windows64 binary is
+preserved, not rebuilt or newly validated. macOS still uses the Default target,
+universal arm64/x86_64 architecture check, deployment target 11.0, and the same
+resources, ZIP/DMG packaging and signing/notary/stapling gates and secret names.
+The project still links legacy QTKit and pins a Developer ID identity; modern
+SDK availability, native compatibility and configured signing/notary
+credentials remain existing prerequisites. This migration does not disable
+native signing or bypass any gate, and does not establish native build success.
+
+Run `actionlint .github/workflows/bump-version.yml .github/workflows/release.yml`
+and `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .github/tests -p 'test_*.py'`.
+Tests use temporary source copies, bare Git remotes and mocked API transports;
+they do not run native builds, signing, Actions dispatches or live publication.
