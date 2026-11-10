@@ -7,6 +7,8 @@ This document is written for **4D developers** calling the plugin's commands
 from 4D code — it does not cover the plugin's internal C++/Objective-C
 implementation.
 
+For native maintainers, see the [ownership audit and regression checks](docs/native-ownership.md).
+
 ---
 
 ## Contents

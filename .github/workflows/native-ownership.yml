@@ -1,0 +1,33 @@
+name: Native ownership
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  ownership:
+    runs-on: macos-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reproduce baseline and check actual wrappers with unchanged SDK
+        run: python3 tests/run_native_ownership.py --baseline
+      - name: Check release lifecycle preservation
+        run: python3 -m unittest discover -s .github/tests -q
+      - name: Compile remaining native surfaces without linking or running devices
+        run: |
+          clang++ -std=c++17 -x objective-c++ -fsyntax-only \
+            -Wno-deprecated-declarations -Wno-extern-c-compat \
+            -include Cocoa/Cocoa.h -include '4D Plugin_Prefix.pch' \
+            -I '4D Plugin API' -I '4D Plugin API/Classes' \
+            -I AudioCapture -I AudioDevice \
+            4DPlugin.cpp AudioCapture/AudioCapture.mm \
+            AudioDevice/AudioDevice.cpp AudioDevice/AudioDeviceList.cpp \
+            CADebugMacros.cpp CAStreamBasicDescription.cpp
